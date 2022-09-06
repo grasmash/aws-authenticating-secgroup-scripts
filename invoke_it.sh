@@ -30,8 +30,8 @@ function hmac_sha256() {
 function task_1() {
     local http_request_method="$1"
     local payload="$2"
-    local canonical_uri="/${api_uri}"
-    local canonical_query=""
+    local canonical_uri="/$(cut -d'?' -f1 <<<"${api_uri}")"
+    local canonical_query="$(cut -d'?' -f2 <<<"${api_url}")"
 
     local header_host="host:${api_host}"
     local canonical_headers="${header_host}\n${header_x_amz_date}"
@@ -130,7 +130,7 @@ function parse_aws_credentials() {
     local awsProfile="$1"
     local awsAccessKey=""
     local awsSecretKey=""
-    
+
     INI_FILE=~/.aws/credentials
 
     if [[ ! -f "${INI_FILE}" ]] ; then
@@ -150,11 +150,11 @@ function parse_aws_credentials() {
             fi
         fi
     done < $INI_FILE
-    
+
     if [[ -z "${awsAccessKey}" || -z "${awsSecretKey}" ]] ; then
         printf ""
     else
-        local credentials="${awsAccessKey}:${awsSecretKey}" 
+        local credentials="${awsAccessKey}:${awsSecretKey}"
         log "found aws credentials: ${INI_FILE}" "${awsProfile} = ${credentials}"
         printf "${credentials}"
     fi
@@ -197,13 +197,22 @@ function main() {
     log "today=" "${today}"
 
     local api_host=$(printf ${api_url} | awk -F/ '{print $3}')
+    local api_host="$(cut -d'?' -f1 <<<"${api_host}")"
+    log "api_host=" ${api_host}
     local api_uri=$(printf ${api_url} | grep / | cut -d/ -f4-)
 
     local aws_region=$(cut -d'.' -f3 <<<"${api_host}")
+    log "aws_region=" ${aws_region}
     local aws_service=$(cut -d'.' -f2 <<<"${api_host}")
+    # for Lambda Function URLs, we need "lambda" rather than "lambda-url".
+    if [[  $aws_service == 'lambda-url' ]]; then
+        aws_service='lambda';
+    fi
+    log "aws_service=" ${aws_service}
 
     local algorithm="AWS4-HMAC-SHA256"
     local credential_scope="${today}/${aws_region}/${aws_service}/aws4_request"
+    log "credential_scope=" "${credential_scope}"
 
     local signed_headers="host;x-amz-date"
     local header_x_amz_date="x-amz-date:${timestamp}"
@@ -214,4 +223,3 @@ function main() {
 }
 
 main "$@"
-
