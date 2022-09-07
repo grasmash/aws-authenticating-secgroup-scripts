@@ -31,7 +31,8 @@ function task_1() {
     local http_request_method="$1"
     local payload="$2"
     local canonical_uri="/$(cut -d'?' -f1 <<<"${api_uri}")"
-    local canonical_query="$(cut -d'?' -f2 <<<"${api_url}")"
+    local canonical_query="$(cut -d'?' -f2 -s <<<"${api_url}")"
+    log "canonical_query=" "${canonical_query}"
 
     local header_host="host:${api_host}"
     local canonical_headers="${header_host}\n${header_x_amz_date}"
